@@ -45,39 +45,7 @@ MySQL.ready(function()
         Wait(200)
     end
 end)
-local playerRecoltePoints = {}
 
-RegisterNetEvent('farming:requestRecoltePoint')
-AddEventHandler('farming:requestRecoltePoint', function()
-    local src = source
-    local xPlayer = ESX.GetPlayerFromId(src)
-    if xPlayer and playerRecoltePoints[xPlayer.identifier] then
-        TriggerClientEvent('farming:setRecoltePoint', src, playerRecoltePoints[xPlayer.identifier])
-        print("J'ai trouvé un point pour le joueur " .. xPlayer.identifier)
-    else
-        -- Message d'erreur si aucun point de récolte n'est trouvé
-        print("Aucun point de récolte trouvé pour le joueur " .. xPlayer.identifier)
-    end
-end)
-
-RegisterNetEvent('farming:updateRecoltePoint')
-AddEventHandler('farming:updateRecoltePoint', function()
-    local src = source
-    local xPlayer = ESX.GetPlayerFromId(src)
-    if xPlayer and Config.Jobs[xPlayer.job.name] then
-        local data = Config.Jobs[xPlayer.job.name]
-        if #data.Recolte > 0 then
-            local randomIndex = math.random(1, #data.Recolte)
-            local selectedPoint = data.Recolte[randomIndex]
-            playerRecoltePoints[xPlayer.identifier] = selectedPoint
-            TriggerClientEvent('farming:setRecoltePoint', src, selectedPoint)
-            print("J'ai trouvé un point pour le joueur " .. xPlayer.identifier)
-        else
-            -- Message si aucune récolte n'est définie pour le job
-            print("Aucune récolte définie pour le job " .. xPlayer.job.name)
-        end
-    end
-end)
 
 RegisterNetEvent('farming:sendBlips')
 AddEventHandler('farming:sendBlips', function()
@@ -91,6 +59,19 @@ AddEventHandler('farming:sendBlips', function()
         else
             print("Données du job non trouvées pour le joueur " .. xPlayer.identifier)
         end
+    end
+end)
+
+RegisterServerEvent('farming:assignJob')
+AddEventHandler('farming:assignJob', function()
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if xPlayer then
+        local job = xPlayer.getJob().name
+        TriggerClientEvent('farming:receiveJob', src, job)
+        print("[DEBUG] Job envoyé au client : " .. job)
+    else
+        print("[ERROR] Impossible de récupérer le joueur ESX pour l'ID " .. src)
     end
 end)
 
