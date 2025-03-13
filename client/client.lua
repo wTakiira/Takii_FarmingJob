@@ -2,11 +2,9 @@ local currentPoint = {}
 local jobBlips = {}
 local playerJob = nil
 
-
-
 -- Vérifie si le joueur a un job au démarrage et met à jour les blips
 Citizen.CreateThread(function()
-    Citizen.Wait(5000) -- Attente pour s'assurer que ESX est bien chargé
+    Citizen.Wait(5000)
     TriggerServerEvent('farming:requestJob')
 end)
 
@@ -16,42 +14,23 @@ AddEventHandler('farming:receiveJob', function(job)
     updateJobBlips()
 end)
 
-
-
--- Mise à jour du job du joueur
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
     playerJob = job.name
     updateJobBlips()
 end)
 
--- Création du blip de Bureau visible par tous
-Citizen.CreateThread(function()
-    for job, data in pairs(Config.Jobs) do
-        local blip = AddBlipForCoord(data.Bureau.x, data.Bureau.y, 200)
-        SetBlipSprite(blip, 475) -- Icône entreprise
-        SetBlipDisplay(blip, 4)
-        SetBlipScale(blip, 1.0)
-        SetBlipColour(blip, data.Color)
-        SetBlipAsShortRange(blip, true)
-        BeginTextCommandSetBlipName("STRING")
-        AddTextComponentString(data.jobLabel)
-        EndTextCommandSetBlipName(blip)
-    end
-end)
-
--- Création des blips de farm uniquement pour les joueurs du job
+-- Création et mise à jour des blips
 function updateJobBlips()
-    -- Supprime les anciens blips
+    -- Suppression des anciens blips
     for _, blip in pairs(jobBlips) do
         RemoveBlip(blip)
     end
     jobBlips = {}
 
-    -- Si le joueur a un job dans Config.Jobs, on affiche les blips
     if playerJob and Config.Jobs[playerJob] then
         local data = Config.Jobs[playerJob]
-
+        
         local function createBlip(coords, sprite, color, text)
             local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
             SetBlipSprite(blip, sprite)
@@ -65,24 +44,25 @@ function updateJobBlips()
             table.insert(jobBlips, blip)
         end
 
-        createBlip(data.Traitement, 271, 5, "Zone de Traitement")
-        createBlip(data.Vente, 271, 5, "Zone de Vente")
+        -- Création des blips
+        for _, rec in pairs(data.Recolte) do
+            createBlip(rec, 568, data.Color, "Zone de Récolte")
+        end
+        createBlip(data.Traitement, 271, data.Color, "Zone de Traitement")
+        createBlip(data.Vente, 500, data.Color, "Zone de Vente")
     end
 end
 
--- Vérifie si le joueur a un job au démarrage et demande les blips
-Citizen.CreateThread(function()
-    Citizen.Wait(5000)
-    TriggerServerEvent('farming:requestJob')
+-- Mise à jour du point de récolte
+RegisterNetEvent('farming:setRecoltePoint')
+AddEventHandler('farming:setRecoltePoint', function(point)
+    print("Received Point: " .. tostring(point.x) .. ", " .. tostring(point.y) .. ", " .. tostring(point.z))
+    if playerJob and Config.Jobs[playerJob] then
+        currentPoint[playerJob] = point
+    end
 end)
 
-RegisterNetEvent('farming:receiveJob')
-AddEventHandler('farming:receiveJob', function(job)
-    playerJob = job
-    updateJobBlips()
-end)
-
--- Sélection d'un point de récolte aléatoire UNIQUEMENT après une récolte
+-- Sélection d'un point de récolte aléatoire après une récolte
 RegisterNetEvent('farming:updateRecoltePoint')
 AddEventHandler('farming:updateRecoltePoint', function()
     if playerJob and Config.Jobs[playerJob] then
@@ -92,8 +72,7 @@ AddEventHandler('farming:updateRecoltePoint', function()
     end
 end)
 
-
--- Interaction avec les zones (récolte, traitement, vente)
+-- Interaction avec les zones
 Citizen.CreateThread(function()
     while true do
         local playerPed = PlayerPedId()
@@ -107,7 +86,7 @@ Citizen.CreateThread(function()
                 DrawText3D(currentPoint[playerJob], "Appuyez sur ~y~E~s~ pour récolter")
                 if IsControlJustReleased(0, 38) then
                     TriggerServerEvent('farming:recolte', playerJob)
-                end            
+                end
             end
 
             -- Traitement
@@ -127,11 +106,11 @@ Citizen.CreateThread(function()
             end
         end
 
-        Citizen.Wait(0) -- Vérification en boucle
+        Citizen.Wait(0)
     end
 end)
 
--- Affichage des markers uniquement pour les joueurs du job
+-- Affichage des markers
 Citizen.CreateThread(function()
     while true do
         local playerPed = PlayerPedId()
@@ -140,7 +119,12 @@ Citizen.CreateThread(function()
         if playerJob and Config.Jobs[playerJob] then
             local data = Config.Jobs[playerJob]
 
-            -- Marker Récolte (jaune)
+            -- Débogage du currentPoint pour s'assurer qu'il a des coordonnées valides
+            if currentPoint[playerJob] then
+                print("Current Point: " .. tostring(currentPoint[playerJob].x) .. ", " .. tostring(currentPoint[playerJob].y) .. ", " .. tostring(currentPoint[playerJob].z))
+            end
+
+            -- Marker Récolte actif (jaune)
             if currentPoint[playerJob] then
                 DrawMarker(1, currentPoint[playerJob].x, currentPoint[playerJob].y, currentPoint[playerJob].z - 1.0, 
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -166,8 +150,7 @@ Citizen.CreateThread(function()
                 false, false, 2, false, nil, nil, false
             )
         end
-
-        Citizen.Wait(0) -- Rafraîchit en permanence
+        Citizen.Wait(0)
     end
 end)
 
