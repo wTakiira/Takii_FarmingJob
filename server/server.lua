@@ -47,6 +47,20 @@ MySQL.ready(function()
 end)
 
 
+RegisterNetEvent('farming:requestBlips')
+AddEventHandler('farming:requestBlips', function()
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if xPlayer then
+        local jobData = Config.Jobs[xPlayer.job.name]
+        if jobData then
+            TriggerClientEvent('farming:createJobBlips', src, jobData.Recolte or {}, jobData.Traitement or {}, jobData.Vente or {})
+        end
+    end
+end)
+
+
+
 RegisterNetEvent('farming:sendBlips')
 AddEventHandler('farming:sendBlips', function()
     local src = source
@@ -67,8 +81,7 @@ AddEventHandler('farming:assignJob', function()
     local src = source
     local xPlayer = ESX.GetPlayerFromId(src)
     if xPlayer then
-        local job = xPlayer.getJob().name
-        TriggerClientEvent('farming:receiveJob', src, job)
+        local job = xPlayer.getJob().name        TriggerClientEvent('farming:receiveJob', src, job)
         print("[DEBUG] Job envoyé au client : " .. job)
     else
         print("[ERROR] Impossible de récupérer le joueur ESX pour l'ID " .. src)

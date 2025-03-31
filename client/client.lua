@@ -3,7 +3,6 @@ local jobBlips = {}
 local playerJob = nil
 
 
-TriggerServerEvent('farming:assignJob')
 RegisterNetEvent('farming:receiveJob')
 AddEventHandler('farming:receiveJob', function(job)
     playerJob = job
@@ -16,12 +15,26 @@ AddEventHandler('farming:receiveJob', function(job)
             tostring(currentPoint[playerJob].z))
     end
     updateJobBlips()
+    Citizen.Wait(2000) 
 end)
+
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
     playerJob = job.name
     updateJobBlips()
 end)
+
+RegisterNetEvent('esx:playerLoaded')
+AddEventHandler('esx:playerLoaded', function(xPlayer)
+    playerJob = xPlayer.job.name
+    TriggerServerEvent('farming:assignJob')
+    updateJobBlips()
+end)
+RegisterNetEvent('esx:playerLoaded')
+AddEventHandler('esx:playerLoaded', function()
+    TriggerServerEvent('farming:requestBlips')
+end)
+
 
 
 -- Création et mise à jour des blips
@@ -73,6 +86,10 @@ end)
 
 
 Citizen.CreateThread(function()
+    while not playerJob or not currentPoint[playerJob] do
+        Citizen.Wait(500) -- Attends que les données soient bien chargées
+    end
+
     while true do
         local playerPed = PlayerPedId()
         local playerCoords = GetEntityCoords(playerPed)
@@ -100,7 +117,7 @@ Citizen.CreateThread(function()
 
         if playerJob and Config.Jobs[playerJob] then
             local data = Config.Jobs[playerJob]
-            print("[DEBUG] Test Stockage Current point" .. tostring(currentPoint));
+            print("[DEBUG] Test Stockage Current point " .. tostring(currentPoint));
             -- Récolte
             if currentPoint[playerJob] then
                 print("[DEBUG] Vérification de la position du joueur pour la récolte")
