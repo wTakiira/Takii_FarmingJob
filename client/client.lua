@@ -21,6 +21,7 @@ end)
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
     playerJob = job.name
+    TriggerServerEvent('farming:assignJob')
     updateJobBlips()
 end)
 
@@ -61,10 +62,10 @@ function updateJobBlips()
         end
 
         for _, rec in pairs(data.Recolte) do
-            createBlip(rec, 568, data.Color, "Zone de Récolte")
+            createBlip(rec, 568, data.Color, _U('recolte_zone'))
         end
-        createBlip(data.Traitement, 271, data.Color, "Zone de Traitement")
-        createBlip(data.Vente, 500, data.Color, "Zone de Vente")
+        createBlip(data.Traitement, 271, data.Color, _U("process_zone"))
+        createBlip(data.Vente, 500, data.Color, _U("sell_zone"))
     end
 end
 
@@ -78,7 +79,7 @@ Citizen.CreateThread(function()
         SetBlipColour(blip, data.Color)
         SetBlipAsShortRange(blip, true)
         BeginTextCommandSetBlipName("STRING")
-        AddTextComponentString("Bureau " .. job)
+        AddTextComponentString(_U("office") .. job)
         EndTextCommandSetBlipName(blip)
     end
 end)
@@ -96,7 +97,7 @@ Citizen.CreateThread(function()
 
         for job, data in pairs(Config.Jobs) do
             if currentPoint[job] and Vdist2(playerCoords, currentPoint[job]) < 4.0 then
-                DrawText3D(currentPoint[job], _U('press_recolte'))
+                DrawText3D(currentPoint[job], _U('press_gather'))
                 if IsControlJustReleased(0, 38) then
                     TriggerServerEvent('farming:recolte', job)
                     -- Nouveau point après récolte
@@ -123,7 +124,7 @@ Citizen.CreateThread(function()
                 print("[DEBUG] Vérification de la position du joueur pour la récolte")
                 print("[DEBUG] Distance à la zone de récolte: " .. #(playerCoords - currentPoint[playerJob]))
                 if #(playerCoords - currentPoint[playerJob]) < 2.0 then
-                    DrawText3D(currentPoint[playerJob], "Appuyez sur ~y~E~s~ pour récolter")
+                    DrawText3D(currentPoint[playerJob], _U("press_gather"))
                     if IsControlJustReleased(0, 38) then
                         print("[DEBUG] Récolte déclenchée pour le job: " .. tostring(playerJob))
                         TriggerServerEvent('farming:recolte', playerJob)
@@ -134,7 +135,7 @@ Citizen.CreateThread(function()
             end
             -- Traitement
             if #(playerCoords - data.Traitement) < 2.0 then
-                DrawText3D(data.Traitement, "Appuyez sur ~y~E~s~ pour traiter")
+                DrawText3D(data.Traitement, _U("press_process"))
                 if IsControlJustReleased(0, 38) then
                     TriggerServerEvent('farming:traitement', playerJob)
                 end
@@ -142,7 +143,7 @@ Citizen.CreateThread(function()
 
             -- Vente
             if #(playerCoords - data.Vente) < 2.0 then
-                DrawText3D(data.Vente, "Appuyez sur ~y~E~s~ pour vendre")
+                DrawText3D(data.Vente, _U("press_sell"))
                 if IsControlJustReleased(0, 38) then
                     TriggerServerEvent('farming:vente', playerJob)
                 end

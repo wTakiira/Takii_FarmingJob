@@ -113,7 +113,7 @@ AddEventHandler('farming:traitement', function(job)
             xPlayer.removeInventoryItem(item, 5)
             xPlayer.addInventoryItem(Config.Jobs[job].itemTraitement, 1)
         else
-            TriggerClientEvent('esx:showNotification', src, "Pas assez d'ingrédients!")
+            TriggerClientEvent('esx:showNotification', src, _U('not_enough'))
         end
     end
 end)
@@ -128,7 +128,7 @@ AddEventHandler('farming:vente', function(job)
             xPlayer.removeInventoryItem(item, 1)
             xPlayer.addMoney(Config.Jobs[job].prixVente)
         else
-            TriggerClientEvent('esx:showNotification', src, "Rien à vendre!")
+            TriggerClientEvent('esx:showNotification', src, _U('not_enough'))
         end
     end
 end)
