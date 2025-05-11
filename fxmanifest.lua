@@ -4,6 +4,7 @@ game 'gta5'
 author 'Takiira'
 description 'Script de job de farming configurable'
 version '1.0.0'
+lua54 'yes'
 
 shared_scripts {
     'config/config.lua',

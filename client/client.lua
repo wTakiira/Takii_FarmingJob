@@ -30,8 +30,16 @@ AddEventHandler('esx:playerLoaded', function(xPlayer)
     TriggerServerEvent('farming:requestBlips')
     updateJobBlips()
 end)
+RegisterNetEvent('esx:playerLoaded')
+AddEventHandler('esx:playerLoaded', function()
+    TriggerServerEvent('farming:requestBlips')
+end)
 
-
+RegisterCommand("jobmenu", function()
+    if playerJob and Config.Jobs[playerJob] and Config.Jobs[playerJob].Boss then
+        OpenBossMenu()
+    end
+end, false)
 
 -- Création et mise à jour des blips
 function updateJobBlips()
@@ -64,6 +72,7 @@ function updateJobBlips()
     end
 end
 
+
 -- Ajout des blips de bureau visibles pour tout le monde
 Citizen.CreateThread(function()
     for job, data in pairs(Config.Jobs) do
@@ -78,6 +87,45 @@ Citizen.CreateThread(function()
         EndTextCommandSetBlipName(blip)
     end
 end)
+
+function OpenBossMenu()
+    local elements = {
+        {label = "Recruter un employé", value = "recruit"},
+        {label = "Virer un employé", value = "fire"},
+        {label = "Gérer la caisse de l'entreprise", value = "manage_funds"}
+    }
+
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'boss_menu', {
+        title    = "Gestion du job",
+        align    = 'top-left',
+        elements = elements
+    }, function(data, menu)
+        if data.current.value == "recruit" then
+            -- Logique pour recruter un employé
+        elseif data.current.value == "fire" then
+            -- Logique pour virer un employé
+        elseif data.current.value == "manage_funds" then
+            -- Logique pour gérer les fonds
+        end
+    end, function(data, menu)
+        menu.close()
+    end)
+end
+
+
+
+-- Ajout d'animations et de progress bar lors des actions
+function StartProgressBar(duration, label, animDict, animName)
+    RequestAnimDict(animDict)
+    while not HasAnimDictLoaded(animDict) do
+        Citizen.Wait(10)
+    end
+
+    TaskPlayAnim(PlayerPedId(), animDict, animName, 8.0, 8.0, -1, 49, 0, false, false, false)
+    exports['progressBars']:startUI(duration, label)
+    Citizen.Wait(duration)
+    ClearPedTasks(PlayerPedId())
+end
 
 
 
@@ -118,6 +166,7 @@ Citizen.CreateThread(function()
                 if #(playerCoords - currentPoint[playerJob]) < 2.0 then
                     DrawText3D(currentPoint[playerJob], _U("press_gather"))
                     if IsControlJustReleased(0, 38) then
+                        StartProgressBar(5000, _U("inprogress_gather"), "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", "machinic_loop_mechandplayer")
                         TriggerServerEvent('farming:recolte', playerJob)
                     end
                 end
@@ -128,6 +177,7 @@ Citizen.CreateThread(function()
             if #(playerCoords - data.Traitement) < 2.0 then
                 DrawText3D(data.Traitement, _U("press_process"))
                 if IsControlJustReleased(0, 38) then
+                    StartProgressBar(7000, _U("inprogress_process"), "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", "machinic_loop_mechandplayer")
                     TriggerServerEvent('farming:traitement', playerJob)
                 end
             end
@@ -136,6 +186,7 @@ Citizen.CreateThread(function()
             if #(playerCoords - data.Vente) < 2.0 then
                 DrawText3D(data.Vente, _U("press_sell"))
                 if IsControlJustReleased(0, 38) then
+                    StartProgressBar(6000, _U("inprogress_sell"), "mp_common", "givetake1_a")
                     TriggerServerEvent('farming:vente', playerJob)
                 end
             end
