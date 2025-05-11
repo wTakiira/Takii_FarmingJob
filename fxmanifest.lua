@@ -22,3 +22,4 @@ server_scripts {
 dependencies {
     'es_extended'
 }
+dependency 'ox_lib'

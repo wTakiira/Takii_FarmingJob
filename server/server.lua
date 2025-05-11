@@ -132,3 +132,169 @@ AddEventHandler('farming:vente', function(job)
         end
     end
 end)
+
+RegisterServerEvent('farming:recruter')
+AddEventHandler('farming:recruter', function(jobName)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    local target = GetClosestPlayer(source)
+
+    if target then
+        local targetPlayer = ESX.GetPlayerFromId(target)
+        targetPlayer.setJob(jobName, 0)
+        xPlayer.showNotification("✅ Vous avez recruté ~g~" .. targetPlayer.getName())
+        targetPlayer.showNotification("📋 Vous avez été recruté par ~b~" .. xPlayer.getName())
+    else
+        xPlayer.showNotification("❌ Aucun joueur à proximité.")
+    end
+end)
+
+RegisterServerEvent('farming:virer')
+AddEventHandler('farming:virer', function(jobName)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    local target = GetClosestPlayer(source)
+
+    if target then
+        local targetPlayer = ESX.GetPlayerFromId(target)
+        targetPlayer.setJob("unemployed", 0)
+        xPlayer.showNotification("🗑️ Vous avez viré ~r~" .. targetPlayer.getName())
+        targetPlayer.showNotification("❌ Vous avez été viré par ~b~" .. xPlayer.getName())
+    else
+        xPlayer.showNotification("❌ Aucun joueur à proximité.")
+    end
+end)
+
+ESX.RegisterServerCallback('farming:getSocietyMoney', function(source, cb)
+    local society = "society_" .. ESX.GetPlayerFromId(source).job.name
+    TriggerEvent('esx_addonaccount:getSharedAccount', society, function(account)
+        cb(account.money)
+    end)
+end)
+
+RegisterServerEvent('farming:depositSociety')
+AddEventHandler('farming:depositSociety', function(amount, jobName)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    amount = tonumber(amount)
+    local society = "society_" .. jobName
+
+    if amount and amount > 0 and xPlayer.getMoney() >= amount then
+        xPlayer.removeMoney(amount)
+        TriggerEvent('esx_addonaccount:getSharedAccount', society, function(account)
+            account.addMoney(amount)
+        end)
+        xPlayer.showNotification("✅ Vous avez déposé ~g~" .. amount .. "$~s~ dans la société.")
+    else
+        xPlayer.showNotification("❌ Montant invalide ou fonds insuffisants.")
+    end
+end)
+
+RegisterServerEvent('farming:withdrawSociety')
+AddEventHandler('farming:withdrawSociety', function(amount, jobName)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    amount = tonumber(amount)
+    local society = "society_" .. jobName
+
+    TriggerEvent('esx_addonaccount:getSharedAccount', society, function(account)
+        if amount and amount > 0 and account.money >= amount then
+            account.removeMoney(amount)
+            xPlayer.addMoney(amount)
+            xPlayer.showNotification("💸 Vous avez retiré ~g~" .. amount .. "$~s~ de la société.")
+        else
+            xPlayer.showNotification("❌ Montant invalide ou fonds insuffisants.")
+        end
+    end)
+end)
+
+ESX.RegisterServerCallback('farming:getEmployees', function(source, cb, jobName)
+    local xPlayers = ESX.GetExtendedPlayers('job', jobName)
+    local employees = {}
+
+    for _, xPlayer in pairs(xPlayers) do
+        table.insert(employees, {
+            name = xPlayer.getName(),
+            identifier = xPlayer.getIdentifier(),
+            grade = xPlayer.job.grade,
+            gradeLabel = xPlayer.job.label
+        })
+    end
+
+    cb(employees)
+end)
+
+
+ESX.RegisterServerCallback('farming:getJobGrades', function(source, cb, jobName)
+    local job = ESX.GetJob(jobName)
+    local grades = {}
+
+    for k, v in pairs(job.grades) do
+        if v then
+            table.insert(grades, {
+                grade = v.grade,
+                label = v.label
+            })
+        end
+    end
+
+    table.sort(grades, function(a, b) return a.grade < b.grade end)
+    cb(grades)
+end)
+
+RegisterNetEvent('farming:fireEmployee', function(identifier, jobName)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if xPlayer.job.name ~= jobName or xPlayer.job.grade_name ~= 'boss' then return end
+
+    MySQL.update('UPDATE users SET job = @job, job_grade = 0 WHERE identifier = @identifier', {
+        ['@job'] = 'unemployed',
+        ['@identifier'] = identifier
+    }, function(rowsChanged)
+        -- Optionnel : kick ou notifie le joueur viré
+        local target = ESX.GetPlayerFromIdentifier(identifier)
+        if target then
+            target.setJob('unemployed', 0)
+            target.showNotification("❌ Vous avez été licencié.")
+        end
+    end)
+end)
+
+RegisterNetEvent('farming:setEmployeeGrade', function(identifier, jobName, grade)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if xPlayer.job.name ~= jobName or xPlayer.job.grade_name ~= 'boss' then return end
+
+    MySQL.update('UPDATE users SET job = @job, job_grade = @grade WHERE identifier = @identifier', {
+        ['@job'] = jobName,
+        ['@grade'] = grade,
+        ['@identifier'] = identifier
+    }, function(rowsChanged)
+        local target = ESX.GetPlayerFromIdentifier(identifier)
+        if target then
+            target.setJob(jobName, grade)
+            target.showNotification("📈 Vous avez été promu au grade : " .. grade)
+        end
+    end)
+end)
+
+
+function GetClosestPlayer(src)
+    local players = ESX.GetPlayers()
+    local closestPlayer, closestDistance
+    local srcPed = GetPlayerPed(src)
+    local srcCoords = GetEntityCoords(srcPed)
+
+    for _, playerId in ipairs(players) do
+        if playerId ~= src then
+            local targetPed = GetPlayerPed(playerId)
+            local targetCoords = GetEntityCoords(targetPed)
+            local dist = #(srcCoords - targetCoords)
+
+            if not closestDistance or dist < closestDistance then
+                closestPlayer = playerId
+                closestDistance = dist
+            end
+        end
+    end
+
+    if closestDistance and closestDistance < 3.0 then
+        return closestPlayer
+    else
+        return nil
+    end
+end

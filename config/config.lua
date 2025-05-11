@@ -15,9 +15,9 @@ Config.Jobs = {
         },
         Traitement = vector3(601.7166, 244.2060, 102.902),
         Vente = vector3(615.5301, 260.4384, 103.0894),
-        Bureau = vector3(594.4901, 258.3544, 103.3166),
+        Bureau = vector3(605.4645, 255.7721, 103.9066),
         grades = {
-            --Laisser ID 0 Pour le boss/patron
+            --Laisser ID 0 et "boss" Pour le boss/patron
             {grade = 0, name = 'boss', label = 'Patron', salary = 1500, skin_male = '{}', skin_female = '{}'},
             {grade = 1, name = 'employee', label = 'Employé', salary = 1000, skin_male = '{}', skin_female = '{}'},
             {grade = 2, name = 'trainee', label = 'Recrue', salary = 500, skin_male = '{}', skin_female = '{}'}

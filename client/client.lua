@@ -1,3 +1,5 @@
+local ESX = exports['es_extended']:getSharedObject()
+
 local currentPoint = {}
 local jobBlips = {}
 local playerJob = nil
@@ -9,10 +11,6 @@ AddEventHandler('farming:receiveJob', function(job)
     if Config.Jobs[playerJob] and #Config.Jobs[playerJob].Recolte > 0 then
         local randomIndex = math.random(1, #Config.Jobs[playerJob].Recolte)
         currentPoint[playerJob] = Config.Jobs[playerJob].Recolte[randomIndex]
-        print("[DEBUG] Initialisation du point de récolte pour " .. playerJob .. ": " .. 
-            tostring(currentPoint[playerJob].x) .. ", " .. 
-            tostring(currentPoint[playerJob].y) .. ", " .. 
-            tostring(currentPoint[playerJob].z))
     end
     updateJobBlips()
     Citizen.Wait(2000) 
@@ -29,11 +27,8 @@ RegisterNetEvent('esx:playerLoaded')
 AddEventHandler('esx:playerLoaded', function(xPlayer)
     playerJob = xPlayer.job.name
     TriggerServerEvent('farming:assignJob')
-    updateJobBlips()
-end)
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function()
     TriggerServerEvent('farming:requestBlips')
+    updateJobBlips()
 end)
 
 
@@ -118,20 +113,16 @@ Citizen.CreateThread(function()
 
         if playerJob and Config.Jobs[playerJob] then
             local data = Config.Jobs[playerJob]
-            print("[DEBUG] Test Stockage Current point " .. tostring(currentPoint));
             -- Récolte
             if currentPoint[playerJob] then
-                print("[DEBUG] Vérification de la position du joueur pour la récolte")
-                print("[DEBUG] Distance à la zone de récolte: " .. #(playerCoords - currentPoint[playerJob]))
                 if #(playerCoords - currentPoint[playerJob]) < 2.0 then
                     DrawText3D(currentPoint[playerJob], _U("press_gather"))
                     if IsControlJustReleased(0, 38) then
-                        print("[DEBUG] Récolte déclenchée pour le job: " .. tostring(playerJob))
                         TriggerServerEvent('farming:recolte', playerJob)
                     end
                 end
             else
-                --print("[DEBUG] Aucun point de récolte défini pour le job: " .. tostring(playerJob))
+                
             end
             -- Traitement
             if #(playerCoords - data.Traitement) < 2.0 then
@@ -165,7 +156,6 @@ Citizen.CreateThread(function()
 
             -- Marker Récolte actif (jaune)
             if currentPoint[playerJob] then
-                print("[DEBUG] Current Point: " .. tostring(currentPoint[playerJob].x) .. ", " .. tostring(currentPoint[playerJob].y) .. ", " .. tostring(currentPoint[playerJob].z))
                 DrawMarker(1, currentPoint[playerJob].x, currentPoint[playerJob].y, currentPoint[playerJob].z - 1.0, 
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                     1.0, 1.0, 1.0, 
@@ -173,7 +163,7 @@ Citizen.CreateThread(function()
                     false, false, 2, false, nil, nil, false
                 )
             else
-                --print("[DEBUG] Aucun currentPoint défini pour: " .. tostring(playerJob))
+                
             end
 
             -- Marker Traitement (bleu)
@@ -207,4 +197,193 @@ function DrawText3D(coords, text)
     SetDrawOrigin(coords.x, coords.y, coords.z, 0)
     DrawText(0.0, 0.0)
     ClearDrawOrigin()
+end
+
+RegisterCommand('openBossFarming', function()
+    ESX.PlayerData = ESX.GetPlayerData()
+    if not playerJob or not ESX.PlayerData or not ESX.PlayerData.job then 
+        ESX.ShowNotification("❌ Les données de votre métier ne sont pas encore chargées.")
+        return 
+    end
+
+    if ESX.PlayerData.job.name == playerJob and ESX.PlayerData.job.grade_name == 'boss' then
+        OpenFarmingBossMenu()
+    else
+    end
+end, false)
+
+
+
+RegisterKeyMapping('OpenBossMenu', 'Menu Boss Farming', 'keyboard', 'F6')
+
+function OpenFarmingBossMenu()
+    ESX.UI.Menu.CloseAll()
+    
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'farming_boss_menu', {
+        title = "Menu Patron - " .. playerJob,
+        align = 'right',
+        elements = {
+            {label = "👥 Recruter un joueur", value = "recruter"},
+            {label = "⚙️ Gérer les employés", value = "gestion"},
+            {label = "💰 Gérer la banque", value = "banque"},
+            {label = "🚪 Fermer le menu", value = "close"}
+        }
+    }, function(data, menu)
+        if data.current.value == 'recruter' then
+            RecruterJoueur()
+        elseif data.current.value == 'gestion' then
+            OpenEmployeesList()
+        elseif data.current.value == 'banque' then
+            OpenSocietyBankMenu()
+        elseif data.current.value == 'close' then
+            menu.close()
+        end
+    end, function(data, menu)
+        menu.close()
+    end)
+end
+
+function RecruterJoueur()
+    local closestPlayer, closestDistance = ESX.Game.GetClosestPlayer()
+    if closestPlayer ~= -1 and closestDistance < 3.0 then
+        TriggerServerEvent('farming:recruter', GetPlayerServerId(closestPlayer), playerJob)
+        ESX.ShowNotification("✅ Joueur recruté.")
+    else
+        ESX.ShowNotification("❌ Aucun joueur proche.")
+    end
+end
+
+function OpenSocietyBankMenu()
+    ESX.TriggerServerCallback('farming:getSocietyMoney', function(money)
+        local elements = {
+            {label = "💵 Argent en société : " .. money .. "$", value = nil},
+            {label = "➕ Déposer de l'argent", value = "deposit"},
+            {label = "➖ Retirer de l'argent", value = "withdraw"},
+        }
+
+        ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'society_bank_menu', {
+            title = "Gestion Banque - " .. playerJob,
+            align = 'right',
+            elements = elements
+        }, function(data, menu)
+            if data.current.value == 'deposit' then
+                ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'deposit_amount', {
+                    title = "Montant à déposer"
+                }, function(data2, menu2)
+                    local amount = tonumber(data2.value)
+                    if amount then
+                        TriggerServerEvent('farming:depositSocietyMoney', playerJob, amount)
+                        menu2.close()
+                    else
+                        ESX.ShowNotification("❌ Montant invalide.")
+                    end
+                end, function(data2, menu2)
+                    menu2.close()
+                end)
+
+            elseif data.current.value == 'withdraw' then
+                ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'withdraw_amount', {
+                    title = "Montant à retirer"
+                }, function(data2, menu2)
+                    local amount = tonumber(data2.value)
+                    if amount then
+                        TriggerServerEvent('farming:withdrawSocietyMoney', playerJob, amount)
+                        menu2.close()
+                    else
+                        ESX.ShowNotification("❌ Montant invalide.")
+                    end
+                end, function(data2, menu2)
+                    menu2.close()
+                end)
+            end
+        end, function(data, menu)
+            menu.close()
+        end)
+    end)
+end
+
+
+
+function OpenEmployeesList()
+    ESX.TriggerServerCallback('farming:getEmployees', function(employees)
+        local elements = {}
+
+        for _, employee in pairs(employees) do
+            table.insert(elements, {
+                label = employee.name .. " - Grade: " .. employee.gradeLabel,
+                value = employee
+            })
+        end
+
+        ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'employee_list', {
+            title = "Liste des employés",
+            align = 'top-left',
+            elements = elements
+        }, function(data, menu)
+            local selected = data.current.value
+            OpenEmployeeActions(selected)
+        end, function(data, menu)
+            menu.close()
+        end)
+    end, playerJob)
+end
+
+
+function OpenEmployeeActions(employee)
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'employee_actions', {
+        title = employee.name,
+        align = 'top-left',
+        elements = {
+            {label = "🔼 Changer le grade", value = "promote"},
+            {label = "❌ Virer l'employé", value = "fire"}
+        }
+    }, function(data, menu)
+        if data.current.value == 'promote' then
+            OpenGradeSelection(employee)
+        elseif data.current.value == 'fire' then
+            TriggerServerEvent('farming:fireEmployee', employee.identifier, playerJob)
+            ESX.ShowNotification("👋 " .. employee.name .. " a été licencié.")
+        end
+    end, function(data, menu)
+        menu.close()
+    end)
+end
+
+
+function OpenGradeSelection(employee)
+    ESX.TriggerServerCallback('farming:getJobGrades', function(grades)
+        local elements = {}
+
+        for _, grade in ipairs(grades) do
+            table.insert(elements, {
+                label = grade.label,
+                value = grade.grade
+            })
+        end
+
+        ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'grade_select', {
+            title = "Changer grade - " .. employee.name,
+            align = 'top-left',
+            elements = elements
+        }, function(data, menu)
+            TriggerServerEvent('farming:setEmployeeGrade', employee.identifier, playerJob, data.current.value)
+            ESX.ShowNotification("✅ Grade modifié pour " .. employee.name)
+        end, function(data, menu)
+            menu.close()
+        end)
+    end, playerJob)
+end
+
+
+function KeyboardInput(textEntry, exampleText, maxStringLength)
+    AddTextEntry('FMMC_KEY_TIP1', textEntry)
+    DisplayOnscreenKeyboard(1, 'FMMC_KEY_TIP1', '', exampleText, '', '', '', maxStringLength)
+    while UpdateOnscreenKeyboard() ~= 1 and UpdateOnscreenKeyboard() ~= 2 do
+        Citizen.Wait(0)
+    end
+    if UpdateOnscreenKeyboard() ~= 2 then
+        return GetOnscreenKeyboardResult()
+    else
+        return nil
+    end
 end
