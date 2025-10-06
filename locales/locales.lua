@@ -29,6 +29,6 @@ Locales = {
 
 function _U(str)
     local text = Locales[Config.Locale][str] or 'Translation missing: ' .. str
-    text = string.gsub(text, "[E]", GetControlInstructionalButton(0, 38, true))
+    -- text = string.gsub(text, "[E]", GetControlInstructionalButton(0, 38, true))
     return text
 end
